@@ -115,8 +115,7 @@ comparison <- standard_error %>%
 comparison
 ```
 
-###Step 8 
-Generate a sampling distribution of mean runtimeMinutes for each decade by \[a\] drawing 1000 random samples of 100 movies from each decade, without replacement, and, for each sample, \[b\] calculating the mean runtimeMinutes and the standard deviation in runtimeMinutes for each decade
+###Step 8 Generate a sampling distribution of mean runtimeMinutes for each decade by \[a\] drawing 1000 random samples of 100 movies from each decade, without replacement, and, for each sample, \[b\] calculating the mean runtimeMinutes and the standard deviation in runtimeMinutes for each decade
 
 ```{r}
 library(infer)
@@ -168,7 +167,356 @@ ggplot(sampling_distributions, aes(x = sample_mean)) +
 ```
 
 ### Step 10
-Compare the standard error in runtimeMinutes for samples of size 100 from each decade [1] as estimated from your first sample of 100 movies, [2] as calculated from the known population standard deviations for each decade, and [3] as estimated from the sampling distribution of sample means for each decade.
+
+Compare the standard error in runtimeMinutes for samples of size 100 from each decade \[1\] as estimated from your first sample of 100 movies, \[2\] as calculated from the known population standard deviations for each decade, and \[3\] as estimated from the sampling distribution of sample means for each decade.
+
 ```{r}
 
+final_comparison <- comparison %>%
+  select(decade, standard_error, theoretical_SE) %>%
+  rename(
+    sample_SE = standard_error,   
+    
+    population_SE = theoretical_SE
+  ) %>%
+  left_join(
+    sampling_dist_summary %>%
+      select(decade, sd_of_sample_means) %>%
+      rename(sampling_dist_SE = sd_of_sample_means),
+    by = "decade"
+  )
+
+
+final_comparison
+
+# [1]
+ggplot(final_comparison, aes(x = sample_SE)) +
+  geom_histogram(bins = 6, fill = "blue") +
+  labs(
+    title = "1. Standard Error Estimated from First Sample of 100 Movies",
+    x = "Standard Error (minutes)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+# [2]
+ggplot(final_comparison, aes(x = population_SE)) +
+  geom_histogram(bins = 6, fill = "red") +
+  labs(
+    title = "2. Standard Error Calculated from Population Standard Deviations",
+    x = "Standard Error (minutes)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+# [3]
+ggplot(final_comparison, aes(x = sampling_dist_SE)) +
+  geom_histogram(bins = 6, fill = "green") +
+  labs(
+    title = "3. Standard Error Estimated from Sampling Distribution",
+    x = "Standard Error (minutes)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+## Challenge 2
+
+### Step 1
+
+loading data as a tibble named z
+
+```{r}
+library(tidyverse)
+z<-read_csv("https://raw.githubusercontent.com/difiore/ada-datasets/main/zombies.csv")
+head(z)
+class(z)
+```
+
+### Step 2
+
+Calculating the Population mean and standard deviation for each random variable
+
+```{r}
+height_mean <- mean(z$height)
+weight_mean <- mean(z$weight)
+age_mean <- mean(z$age)
+zombies_killed_mean <- mean(z$zombies_killed)
+education_mean <- mean(z$years_of_education)
+
+
+N <- nrow(z)
+
+
+height_sd <- sqrt(sum((z$height - height_mean)^2) / N)
+
+
+weight_sd <- sqrt(sum((z$weight - weight_mean)^2) / N)
+
+
+age_sd <- sqrt(sum((z$age - age_mean)^2) / N)
+
+zombies_killed_sd <- sqrt(sum((z$zombies_killed - zombies_killed_mean)^2) / N)
+
+education_sd <- sqrt(sum((z$years_of_education - education_mean)^2) / N)
+
+results <- data.frame(
+  Variable = c("Height", "Weight", "Age", "Zombies Killed", "Years of Education"),
+  Mean = c(height_mean, weight_mean, age_mean, zombies_killed_mean, education_mean),
+  SD = c(height_sd, weight_sd, age_sd, zombies_killed_sd, education_sd)
+)
+
+print(results)
+```
+
+### Step 3
+
+Making box plots of each of these variables by gender.
+
+```{r}
+library(ggplot2)
+height_plot <- ggplot(z, aes(x = gender, y = height, fill = gender)) +
+  geom_boxplot() +
+  labs(title = "Height by Gender",
+       x = "Gender",
+       y = "Height") +
+  theme_minimal()
+
+weight_plot <- ggplot(z, aes(x = gender, y = weight, fill = gender)) +
+  geom_boxplot() +
+  labs(title = "Weight by Gender",
+       x = "Gender",
+       y = "Weight") +
+  theme_minimal()
+
+age_plot <- ggplot(z, aes(x = gender, y = age, fill = gender)) +
+  geom_boxplot() +
+  labs(title = "Age by Gender",
+       x = "Gender",
+       y = "Age") +
+  theme_minimal()
+
+zombies_plot <- ggplot(z, aes(x = gender, y = zombies_killed, fill = gender)) +
+  geom_boxplot() +
+  labs(title = "Zombies Killed by Gender",
+       x = "Gender",
+       y = "Zombies Killed") +
+  theme_minimal()
+
+education_plot <- ggplot(z, aes(x = gender, y = years_of_education, fill = gender)) +
+  geom_boxplot() +
+  labs(title = "Years of Education by Gender",
+       x = "Gender",
+       y = "Years of Education") +
+  theme_minimal()
+
+
+print(height_plot)
+print(weight_plot)
+print(age_plot)
+print(zombies_plot)
+print(education_plot)
+```
+
+### Step 4
+
+Using {ggplot} to make scatterplots of height and weight in relation to age (i.e., use age as the variable), using different colored points for males (blue) versus females(pink)
+
+```{r}
+
+height_age_plot <- ggplot(z, aes(x = age, y = height, color = gender)) +
+  geom_point() +
+  labs(title = "Height vs Age by Gender",
+       x = "Age (years)",
+       y = "Height (cm)") +
+  theme_minimal()
+
+
+weight_age_plot <- ggplot(z, aes(x = age, y = weight, color = gender)) +
+  geom_point() +
+  labs(title = "Weight vs Age by Gender",
+       x = "Age (years)",
+       y = "Weight (kg)") +
+  theme_minimal()
+
+
+print(height_age_plot)
+print(weight_age_plot)
+
+scale_color_discrete(values = c("pink", "blue"))
+```
+
+Q ? Do these variables seem to be related? In what way? A: To me it appears that height and weight are positively correlated with age, but height shows a stronger relationship. Also the males seems to be both taller and heavier on average so my interpretation is the majority of the zombie Apocalypse survivors are between the ages of 17-25 male and female
+
+### Step 5
+
+using histograms and Q-Q plots
+
+Years of Educations and Zombies Killed are NOT DRAWN FROM A NORMAL DISTRIBUTION.
+
+```{r}
+
+library(tidyverse)
+
+height_hist <- ggplot(z, aes(x = height)) +
+  geom_histogram(bins = 20, fill = "blue") +
+  labs(title = "Histogram of Height",
+       x = "Height (cm)",
+       y = "Count")
+
+height_qq <- ggplot(z, aes(sample = height)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Height")
+
+weight_hist <- ggplot(z, aes(x = weight)) +
+  geom_histogram(bins = 20, fill = "green") +
+  labs(title = "Histogram of Weight",
+       x = "Weight (kg)",
+       y = "Count")
+
+weight_qq <- ggplot(z, aes(sample = weight)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Weight")
+
+age_hist <- ggplot(z, aes(x = age)) +
+  geom_histogram(bins = 20, fill = "red") +
+  labs(title = "Histogram of Age",
+       x = "Age (years)",
+       y = "Count")
+
+age_qq <- ggplot(z, aes(sample = age)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Age")
+
+zombies_hist <- ggplot(z, aes(x = zombies_killed)) +
+  geom_histogram(bins = 20, fill = "purple") +
+  labs(title = "Histogram of Zombies Killed",
+       x = "Zombies Killed",
+       y = "Count")
+
+zombies_qq <- ggplot(z, aes(sample = zombies_killed)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Zombies Killed")
+
+education_hist <- ggplot(z, aes(x = years_of_education)) +
+  geom_histogram(bins = 20, fill = "orange") +
+  labs(title = "Histogram of Years of Education",
+       x = "Years of Education",
+       y = "Count")
+
+education_qq <- ggplot(z, aes(sample = years_of_education)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Years of Education")
+
+print(height_hist)
+print(height_qq)
+print(weight_hist)
+print(weight_qq)
+print(age_hist)
+print(age_qq)
+print(zombies_hist)
+print(zombies_qq)
+print(education_hist)
+print(education_qq)
+```
+### Step 6
+Now use the sample_n() or slice_sample() function from {dplyr} to sample ONE subset of 50 zombie apocalypse survivors (without replacement) from this population and calculate the mean and sample standard deviation for each variable. Also estimate the standard error for each variable based on this one sample and use that to construct a theoretical 95% confidence interval for each mean. You can use either the standard normal or a Student’s t distribution to derive the critical values needed to calculate the lower and upper limits of the CI.
+```{r}
+
+sample_survivors <- slice_sample(z, n = 50)
+
+sample_stats <- sample_survivors %>%
+  summarise(
+    # Height
+    height_mean = mean(height),
+    height_sd = sd(height),
+    height_se = sd(height) / sqrt(50),
+    height_lower = height_mean - qt(0.975, 49) * height_se,
+    height_upper = height_mean + qt(0.975, 49) * height_se,
+    
+    # Weight
+    weight_mean = mean(weight),
+    weight_sd = sd(weight),
+    weight_se = sd(weight) / sqrt(50),
+    weight_lower = weight_mean - qt(0.975, 49) * weight_se,
+    weight_upper = weight_mean + qt(0.975, 49) * weight_se,
+    
+    # Age
+    age_mean = mean(age),
+    age_sd = sd(age),
+    age_se = sd(age) / sqrt(50),
+    age_lower = age_mean - qt(0.975, 49) * age_se,
+    age_upper = age_mean + qt(0.975, 49) * age_se,
+    
+    # Zombies killed
+    zombies_mean = mean(zombies_killed),
+    zombies_sd = sd(zombies_killed),
+    zombies_se = sd(zombies_killed) / sqrt(50),
+    zombies_lower = zombies_mean - qt(0.975, 49) * zombies_se,
+    zombies_upper = zombies_mean + qt(0.975, 49) * zombies_se,
+    
+    # Years of education
+    education_mean = mean(years_of_education),
+    education_sd = sd(years_of_education),
+    education_se = sd(years_of_education) / sqrt(50),
+    education_lower = education_mean - qt(0.975, 49) * education_se,
+    education_upper = education_mean + qt(0.975, 49) * education_se
+  )
+
+result_height <- data.frame(
+  Variable = "Height",
+  Mean = sample_stats$height_mean,
+  SD = sample_stats$height_sd,
+  SE = sample_stats$height_se,
+  CI_Lower = sample_stats$height_lower,
+  CI_Upper = sample_stats$height_upper
+)
+
+result_weight <- data.frame(
+  Variable = "Weight",
+  Mean = sample_stats$weight_mean,
+  SD = sample_stats$weight_sd,
+  SE = sample_stats$weight_se,
+  CI_Lower = sample_stats$weight_lower,
+  CI_Upper = sample_stats$weight_upper
+)
+
+result_age <- data.frame(
+  Variable = "Age",
+  Mean = sample_stats$age_mean,
+  SD = sample_stats$age_sd,
+  SE = sample_stats$age_se,
+  CI_Lower = sample_stats$age_lower,
+  CI_Upper = sample_stats$age_upper
+)
+
+result_zombies <- data.frame(
+  Variable = "Zombies Killed",
+  Mean = sample_stats$zombies_mean,
+  SD = sample_stats$zombies_sd,
+  SE = sample_stats$zombies_se,
+  CI_Lower = sample_stats$zombies_lower,
+  CI_Upper = sample_stats$zombies_upper
+)
+
+result_education <- data.frame(
+  Variable = "Years of Education",
+  Mean = sample_stats$education_mean,
+  SD = sample_stats$education_sd,
+  SE = sample_stats$education_se,
+  CI_Lower = sample_stats$education_lower,
+  CI_Upper = sample_stats$education_upper
+)
+
+
+results_table <- rbind(result_height, result_weight, result_age, result_zombies, result_education)
+
+print(results_table)
+
+```
 
