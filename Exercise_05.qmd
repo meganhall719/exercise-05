@@ -1,0 +1,174 @@
+---
+title: "Exercise_05"
+format: html
+editor: visual
+---
+
+## Challenge 1
+
+### Step 1
+
+loading data set as a tibble named "d"
+
+```{r}
+library(tidyverse)
+d<-read_csv("https://raw.githubusercontent.com/difiore/ada-datasets/main/IMDB-movies.csv")
+head(d)
+class(d)
+```
+
+### Step 2
+
+Creating a one-line statement to filter the dataset to include moves from 1920-1979 that are between 1-3 hours long.
+
+```{r}
+d <- d %>%
+  filter(startYear >= 1920 & startYear <= 1979, 
+         runtimeMinutes >= 60 & runtimeMinutes <= 180) %>%
+  mutate(decade = paste0(substr(startYear, 3, 3), "0s"))
+nrow(d)
+```
+
+### Step 3
+
+Using {ggplot2} to plot histograms of the distribution of runtimeMinutes for each decade.
+
+```{r}
+library(ggplot2)
+ggplot(data = d) + 
+  geom_histogram(mapping = aes(x = runtimeMinutes)) + 
+  facet_wrap(~ decade) + 
+  ggtitle("Distribution of Movie Runtimes by Decade (1920-1979)") +
+  xlab("Runtime (minutes)") + 
+  ylab("Number of Movies")
+```
+
+### Step 4
+
+A one-line statement to calculate the population mean and population standard deviation in runtimeMinutes for each decade and save the results in a new dataframe called results
+
+```{r}
+results <- d %>%
+  group_by(decade) %>%
+  summarize(mean_runtime = mean(runtimeMinutes),
+            sd_runtime = sd(runtimeMinutes) * sqrt((n() - 1) / n()))
+results
+```
+
+### Step 5
+
+Drawing a single sample of 100 movies, without replacement, from each decade and calculate the single sample mean and single sample standard deviation in runtimeMinutes for each decades
+
+```{r}
+sample_results <- data.frame(decade = character(), 
+                             sample_mean = numeric(),
+                             sample_sd = numeric())
+
+decades <- unique(d$decade)
+
+for (dec in decades) {
+ 
+  decade_movies <- d[d$decade == dec, ]
+  sampled_movies <- sample_n(decade_movies, 100)
+  
+ 
+  mean_runtime <- mean(sampled_movies$runtimeMinutes)
+  sd_runtime <- sd(sampled_movies$runtimeMinutes)
+  
+  
+  new_row <- data.frame(decade = dec,
+                        sample_mean = mean_runtime,
+                        sample_sd = sd_runtime)
+  
+  sample_results <- rbind(sample_results, new_row)
+}
+
+
+sample_results
+```
+
+### Step 6
+
+Calculate for each decade the standard error around your estimate of the population mean runtimeMinutes based on the standard deviation and sample size (n=100 movies) of your single sample.
+
+```{r}
+standard_error <- sample_results %>%
+  mutate(standard_error = sample_sd / sqrt(100))
+standard_error
+```
+
+### Step 7
+
+Comparing those estimates for each decade and to the calculated standard error in the population mean for samples of size 100 based on the population standard deviation for each decade.
+
+```{r}
+results_with_SE <- results %>%
+  mutate(theoretical_SE = sd_runtime / sqrt(100))
+
+comparison <- standard_error %>%
+  left_join(results_with_SE, by = "decade") %>%
+  mutate(
+    mean_difference = sample_mean - mean_runtime,
+    SE_difference = standard_error - theoretical_SE
+  )
+
+comparison
+```
+
+###Step 8 
+Generate a sampling distribution of mean runtimeMinutes for each decade by \[a\] drawing 1000 random samples of 100 movies from each decade, without replacement, and, for each sample, \[b\] calculating the mean runtimeMinutes and the standard deviation in runtimeMinutes for each decade
+
+```{r}
+library(infer)
+
+sampling_distributions <- d %>%
+  group_by(decade) %>%
+  nest() %>%
+  mutate(
+    samples = map(data, ~rep_sample_n(.x, size = 100, replace = FALSE, reps = 1000))
+  ) %>%
+  unnest(samples) %>%
+  group_by(decade, replicate) %>%
+  summarize(
+    sample_mean = mean(runtimeMinutes),
+    sample_sd = sd(runtimeMinutes),
+    .groups = "drop"
+  )
+
+```
+
+### Step 9
+
+calculate the mean and the standard deviation of the sampling distribution of sample means for each decade
+
+The shape of the sampling distributions are normal for each decade.This is because of what we learned in class "The Central Limit Theorem". We know as sample size increases the sampling distributions of a sample statistic will approach a normal distribution.
+
+```{r}
+sampling_dist_summary <- sampling_distributions %>%
+  group_by(decade) %>%
+  summarize(
+    mean_of_sample_means = mean(sample_mean),
+    sd_of_sample_means = sd(sample_mean)
+  )
+
+sampling_dist_summary
+
+ggplot(sampling_distributions, aes(x = sample_mean)) +
+  geom_histogram(bins = 30, fill = "purple", color = "red", alpha = 0.7) +
+  facet_wrap(~ decade, ncol = 2) +
+  geom_vline(data = sampling_dist_summary, 
+             aes(xintercept = mean_of_sample_means), 
+             color = "blue", linetype = "dashed", size = 1) +
+  labs(title = "Sampling Distribution of Mean Runtimes by Decade",
+       subtitle = "Red line indicates mean of sampling distribution",
+       x = "Sample Mean (minutes)",
+       y = "Frequency") +
+  theme_minimal()
+
+```
+
+### Step 10
+Compare the standard error in runtimeMinutes for samples of size 100 from each decade [1] as estimated from your first sample of 100 movies, [2] as calculated from the known population standard deviations for each decade, and [3] as estimated from the sampling distribution of sample means for each decade.
+```{r}
+
+
