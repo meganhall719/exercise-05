@@ -424,8 +424,11 @@ print(zombies_qq)
 print(education_hist)
 print(education_qq)
 ```
+
 ### Step 6
+
 Now use the sample_n() or slice_sample() function from {dplyr} to sample ONE subset of 50 zombie apocalypse survivors (without replacement) from this population and calculate the mean and sample standard deviation for each variable. Also estimate the standard error for each variable based on this one sample and use that to construct a theoretical 95% confidence interval for each mean. You can use either the standard normal or a Student’s t distribution to derive the critical values needed to calculate the lower and upper limits of the CI.
+
 ```{r}
 
 sample_survivors <- slice_sample(z, n = 50)
@@ -520,3 +523,212 @@ print(results_table)
 
 ```
 
+### Step 7 Drawing 199 more samples and analyzing the sampling distribution
+
+***What are the means and standard deviations of the sampling distribution for each variable?***
+
+The sampling distribution means and standard deviations are:Height: Mean = 67.62, SD = 0.56 Weight: Mean = 143.86, SD = 2.29 Age: Mean = 20.02, SD = 0.43 Zombies Killed: Mean = 3.01, SD = 0.25 Years of Education: Mean = 3.04, SD = 0.22
+
+***How do the standard deviations of the sampling distribution compare to the standard errors from your first sample?***
+
+They're very similar! we see the Height: Sampling SD = 0.56, First sample SE = 0.55 This similarity tells us that the standard error calculated from a single sample is a good estimate of how sample means vary.
+
+```{r}
+
+get_sample_means <- function() {
+  sample_data <- slice_sample(z, n = 50)
+  return(c(
+    height = mean(sample_data$height),
+    weight = mean(sample_data$weight),
+    age = mean(sample_data$age),
+    zombies_killed = mean(sample_data$zombies_killed),
+    years_of_education = mean(sample_data$years_of_education)
+  ))
+}
+
+
+
+sample_means_list <- replicate(199, get_sample_means(), simplify = FALSE)
+
+
+sample_means_df <- bind_rows(sample_means_list) 
+
+first_sample_means <- data.frame(
+  height = sample_stats$height_mean,
+  weight = sample_stats$weight_mean,
+  age = sample_stats$age_mean,
+  zombies_killed = sample_stats$zombies_mean,
+  years_of_education = sample_stats$education_mean
+)
+
+all_sample_means <- bind_rows(first_sample_means, sample_means_df)
+
+sampling_dist_summary <- all_sample_means %>%
+  summarise(across(everything(), 
+                  list(mean = mean, sd = sd),
+                  .names = "{.col}_{.fn}"))
+
+comparison <- data.frame(
+  Variable = c("Height", "Weight", "Age", "Zombies Killed", "Years of Education"),
+  Sampling_Dist_SD = c(
+    sampling_dist_summary$height_sd,
+    sampling_dist_summary$weight_sd,
+    sampling_dist_summary$age_sd,
+    sampling_dist_summary$zombies_killed_sd,
+    sampling_dist_summary$years_of_education_sd
+  ),
+  First_Sample_SE = c(
+    sample_stats$height_se,
+    sample_stats$weight_se,
+    sample_stats$age_se,
+    sample_stats$zombies_se,
+    sample_stats$education_se
+  )
+)
+
+print(sampling_dist_summary)
+print(comparison)
+```
+
+### Step 8 Plotting the sampling distributions
+
+***What do they look like?***
+
+All five sampling distributions appear to have a bell-shaped curve and they also appear to have a normal distribution
+
+***Are they normally distributed?***
+
+I say yes they are
+
+***What about for variables that were not originally normally distributed?***
+
+In step 5, I said that "YearsofEducation" and "Zombies Killed" were not normally distributed, but looking at them now they are.
+
+```{r}
+
+sample_means_long <- all_sample_means %>%
+  pivot_longer(cols = everything(), 
+               names_to = "variable", 
+               values_to = "mean_value")
+
+ggplot(sample_means_long, aes(x = mean_value)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "lightblue", color = "black") +
+  geom_density(color = "red", linewidth = 1) +
+  facet_wrap(~ variable, scales = "free") +
+  labs(title = "Sampling Distributions of Means (n=50)",
+       x = "Sample Mean",
+       y = "Density") +
+  theme_minimal()
+
+
+variables <- unique(sample_means_long$variable)
+
+create_qq_plot <- function(var_name) {
+  data_subset <- filter(sample_means_long, variable == var_name)
+  ggplot(data_subset, aes(sample = mean_value)) +
+    geom_qq() +
+    geom_qq_line() +
+    labs(title = paste("Q-Q Plot for", var_name),
+         x = "Theoretical Quantiles",
+         y = "Sample Quantiles") +
+    theme_minimal()
+}
+
+qq_plots <- lapply(variables, create_qq_plot)
+for(plot in qq_plots) {
+  print(plot)
+}
+```
+
+### Step 9 Constructing confidence intervals from the sampling distribution
+
+```{r}
+ci_from_sampling_dist <- all_sample_means %>%
+  summarise(across(everything(),
+                  list(
+                    mean = mean,
+                    lower_ci = ~quantile(.x, 0.025),
+                    upper_ci = ~quantile(.x, 0.975)
+                  ),
+                  .names = "{.col}_{.fn}"))
+
+ci_sampling_comparison <- data.frame(
+  Variable = c("Height", "Weight", "Age", "Zombies Killed", "Years of Education"),
+  
+  Sampling_Mean = c(
+    ci_from_sampling_dist$height_mean,
+    ci_from_sampling_dist$weight_mean,
+    ci_from_sampling_dist$age_mean,
+    ci_from_sampling_dist$zombies_killed_mean,
+    ci_from_sampling_dist$years_of_education_mean
+  ),
+  Sampling_Lower_CI = c(
+    ci_from_sampling_dist$height_lower_ci,
+    ci_from_sampling_dist$weight_lower_ci,
+    ci_from_sampling_dist$age_lower_ci,
+    ci_from_sampling_dist$zombies_killed_lower_ci,
+    ci_from_sampling_dist$years_of_education_lower_ci
+  ),
+  Sampling_Upper_CI = c(
+    ci_from_sampling_dist$height_upper_ci,
+    ci_from_sampling_dist$weight_upper_ci,
+    ci_from_sampling_dist$age_upper_ci,
+    ci_from_sampling_dist$zombies_killed_upper_ci,
+    ci_from_sampling_dist$years_of_education_upper_ci
+  ),
+  
+  First_Sample_Mean = c(
+    sample_stats$height_mean,
+    sample_stats$weight_mean,
+    sample_stats$age_mean,
+    sample_stats$zombies_mean,
+    sample_stats$education_mean
+  ),
+  First_Sample_Lower_CI = c(
+    sample_stats$height_lower,
+    sample_stats$weight_lower,
+    sample_stats$age_lower,
+    sample_stats$zombies_lower,
+    sample_stats$education_lower
+  ),
+  First_Sample_Upper_CI = c(
+    sample_stats$height_upper,
+    sample_stats$weight_upper,
+    sample_stats$age_upper,
+    sample_stats$zombies_upper,
+    sample_stats$education_upper
+  )
+)
+
+print(ci_sampling_comparison)
+
+ci_from_sampling_se <- data.frame(
+  Variable = c("Height", "Weight", "Age", "Zombies Killed", "Years of Education"),
+  Mean = c(
+    sampling_dist_summary$height_mean,
+    sampling_dist_summary$weight_mean,
+    sampling_dist_summary$age_mean,
+    sampling_dist_summary$zombies_killed_mean,
+    sampling_dist_summary$years_of_education_mean
+  ),
+  SE = c(
+    sampling_dist_summary$height_sd,
+    sampling_dist_summary$weight_sd,
+    sampling_dist_summary$age_sd,
+    sampling_dist_summary$zombies_killed_sd,
+    sampling_dist_summary$years_of_education_sd
+  )
+)
+
+ci_from_sampling_se <- ci_from_sampling_se %>%
+  mutate(
+    Lower_CI = Mean - qt(0.975, 49) * SE,
+    Upper_CI = Mean + qt(0.975, 49) * SE
+  )
+
+print(ci_from_sampling_se)
+```
+
+### Step 10
+
+I really don't understand how to do this step
