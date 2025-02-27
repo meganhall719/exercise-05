@@ -634,6 +634,27 @@ for(plot in qq_plots) {
 ### Step 9 Constructing confidence intervals from the sampling distribution
 
 ```{r}
+sampling_dist_summary <- all_sample_means %>%
+  summarise(
+    height_mean = mean(height),
+    weight_mean = mean(weight),
+    age_mean = mean(age),
+    zombies_killed_mean = mean(zombies_killed),
+    years_of_education_mean = mean(years_of_education),
+    height_sd = sd(height),
+    weight_sd = sd(weight),
+    age_sd = sd(age),
+    zombies_killed_sd = sd(zombies_killed),
+    years_of_education_sd = sd(years_of_education)
+  )
+
+
+print(names(sampling_dist_summary))
+
+
+```
+
+```{r}
 ci_from_sampling_dist <- all_sample_means %>%
   summarise(across(everything(),
                   list(
